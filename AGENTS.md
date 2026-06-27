@@ -1,5 +1,7 @@
 # AGENTS.md — App Socios Estadio
 
+> **Polyrepo**: este archivo (versión completa) vive en [`app-socios-estadio-docs`](https://github.com/arnigon-holdings/app-socios-estadio-docs). El root ([`app-socios-estadio-infra`](https://github.com/arnigon-holdings/app-socios-estadio-infra)) tiene una versión corta del mismo. Ver "Archivos de referencia" al final para el mapa completo de los 6 repos del proyecto.
+
 ## Propósito
 Plataforma SaaS para registro de socios con verificación facial y sistema de puntos.
 
@@ -52,10 +54,13 @@ Aplicar guías antes de actuar y sensores después de actuar.
 
 ### Sensores
 Después de cambios relevantes, ejecutar según aplique:
-- `make fmt`
-- `make lint`
-- `make test`
-- `make validate`
+- `make validate` (lint + links, en este repo)
+- `make lint` (markdown lint, opcional)
+- `make links` (markdown link check, opcional)
+
+> **En este repo (docs)**: los targets son `make validate`/`lint`/`links`. No hay `make fmt` ni `make test` (es markdown only).
+>
+> **En cada subsistema polyrepo**: corré el `Makefile` del subsistema (tiene targets específicos de su stack — frontend tiene `test`, backend tiene `db_seed`/`db_console`, etc).
 
 Si existe chequeo adicional por stack, usarlo también:
 - Frontend: tests de componentes, typecheck, build
@@ -151,14 +156,16 @@ Cuando el cambio lo justifique, considerar:
 No aplicar patrones complejos por defecto si el problema actual no lo necesita.
 
 ## Comandos del proyecto
-Usar estos comandos antes de cerrar trabajo:
-- `make deps`
-- `make fmt`
-- `make lint`
-- `make test`
-- `make validate`
+Usar estos comandos antes de cerrar trabajo, según el subsistema:
 
-Si falta alguno o no existe, reportarlo y proponer ajuste al Makefile.
+**Este repo (docs)**:
+- `make validate` — markdown lint + link check
+- `make lint` — solo markdown lint
+- `make links` — solo link check
+
+**Cada subsistema polyrepo** tiene su propio `Makefile` con targets específicos (frontend `lint`/`build`/`validate`, backend `db_seed`/`db_console`/`logs`, etc). Corré el del subsistema que tocás.
+
+Si falta algún target o no existe, reportarlo y proponer ajuste al `Makefile` del subsistema correspondiente.
 
 ## Definition of Done
 Un cambio está listo solo si:
@@ -183,7 +190,53 @@ Siempre responder con:
 - Riesgos o pendientes
 
 ## Archivos de referencia
-- `SPEC.md`: fuente de verdad funcional
-- `ARCHITECTURE.md`: decisiones de arquitectura
-- `INFRASTRUCTURE.md`: detalle cloud y Terraform
-- `README.md`: setup y comandos
+
+> **Polyrepo**: este repo (docs) es uno de los 6 repos del proyecto. Los path relativos acá son respecto a este repo. Para docs que viven en otros repos, uso URLs absolutas a GitHub.
+
+### En este repo (`app-socios-estadio-docs`)
+
+- [`SPEC.md`](./SPEC.md) — fuente de verdad funcional (qué hace el producto)
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — boundaries por componente, capas, diagramas
+- [`INFRASTRUCTURE.md`](./INFRASTRUCTURE.md) — principios de infra, Terraform, IAM, deploy
+- [`CHECKLIST.md`](./CHECKLIST.md) — estado del proyecto por fase (M0-M5 + Phase 2)
+- [`ENVIRONMENT.md`](./ENVIRONMENT.md) — variables de entorno (referencia por proyecto)
+- [`HARNESS.md`](./HARNESS.md) — marco de harness engineering
+- [`README.md`](./README.md) — entry point de este repo (mapa de los 6 repos)
+- `Makefile` — targets de validación de docs (markdown lint, link check)
+
+### En otros repos
+
+**Root infra** ([`app-socios-estadio-infra`](https://github.com/arnigon-holdings/app-socios-estadio-infra)):
+- `README.md` — entry point del root, mapa de los 6 repos
+- `AGENTS.md` — versión corta de este archivo (referencia rápida)
+- `infrastructure/aws/` — Terraform backend (S3 + Rekognition + IAM)
+- `infrastructure/frontend-liveness/` — Terraform frontend (API Gateway + Lambda + Cognito)
+
+**Per-subsystem context** (CLAUDE.md específico de cada stack):
+
+| Repo | Path del CLAUDE.md | Para qué leerlo |
+|---|---|---|
+| [`app-socios-estadio-frontend`](https://github.com/arnigon-holdings/app-socios-estadio-frontend) | [`frontend/CLAUDE.md`](https://github.com/arnigon-holdings/app-socios-estadio-frontend/blob/main/CLAUDE.md) | Contexto del frontend: liveness UX, decisiones de wizard |
+| [`app-socios-estadio-admin`](https://github.com/arnigon-holdings/app-socios-estadio-admin) | [`admin/CLAUDE.md`](https://github.com/arnigon-holdings/app-socios-estadio-admin/blob/main/CLAUDE.md) | Contexto del admin: rutas, decisiones de tablas vs cards |
+| [`app-socios-estadio-backend`](https://github.com/arnigon-holdings/app-socios-estadio-backend) | `backend/README.md` (no tiene CLAUDE.md) | Comandos del backend |
+| [`app-socios-estadio-face-search`](https://github.com/arnigon-holdings/app-socios-estadio-face-search) | `face-search-service/README.md` (no tiene CLAUDE.md) | Comandos del Go service |
+
+### Per-subsystem READMEs (comandos, env vars)
+
+| Repo | README |
+|---|---|
+| [`app-socios-estadio-frontend`](https://github.com/arnigon-holdings/app-socios-estadio-frontend) | [`README.md`](https://github.com/arnigon-holdings/app-socios-estadio-frontend/blob/main/README.md) — quickstart, env vars VITE_*, estructura |
+| [`app-socios-estadio-admin`](https://github.com/arnigon-holdings/app-socios-estadio-admin) | [`README.md`](https://github.com/arnigon-holdings/app-socios-estadio-admin/blob/main/README.md) — quickstart, env vars VITE_*, estructura |
+| [`app-socios-estadio-backend`](https://github.com/arnigon-holdings/app-socios-estadio-backend) | [`README.md`](https://github.com/arnigon-holdings/app-socios-estadio-backend/blob/main/README.md) — docker-compose, env vars, endpoints |
+| [`app-socios-estadio-face-search`](https://github.com/arnigon-holdings/app-socios-estadio-face-search) | [`README.md`](https://github.com/arnigon-holdings/app-socios-estadio-face-search/blob/main/README.md) — Go service, endpoints, env vars |
+
+## Cómo el agente usa esta documentación
+
+**Regla**: antes de tocar cualquier subsistema, leé en este orden:
+
+1. [`SPEC.md`](./SPEC.md) — qué hace el producto (alcance).
+2. [`ARCHITECTURE.md`](./ARCHITECTURE.md) — qué puede tocar tu subsistema (boundaries).
+3. `CLAUDE.md` del subsistema específico (link arriba) — decisiones locales.
+4. `README.md` del subsistema — comandos y env vars.
+
+**No te metas en otros subsistemas** sin check explícito del humano (riesgo = external write a otros repos).
