@@ -1,6 +1,6 @@
 # CHECKLIST.md — Progreso del Proyecto
 
-> Estado actualizado: 2026-06-26
+> Estado actualizado: 2026-07-19
 > Convenciones: ✅ completado · 🟡 en progreso · ❌ pendiente
 
 ---
@@ -92,7 +92,7 @@
 | IAM policy `face-indexing` | ✅ | least-privilege, scoped a bucket y colección, con `aws:ResourceAccount` |
 | IAM role `face-indexing` | ✅ | assummable por EC2/ECS/Lambda + GCP WIF |
 
-### Go Service (`face-search-service/`)
+### Go Service (`app-socios-estadio-face-search/`)
 | Item | Estado | Notas |
 |------|--------|-------|
 | Estructura base | ✅ | `cmd/server`, `internal/{config,db,handlers,middleware,rekognition}` |
@@ -105,6 +105,7 @@
 | Cloud Build config | ✅ | `cloudbuild.yaml` |
 | Docker Compose integrado | ✅ | `backend/docker-compose.yml` |
 | Middleware CORS allowlist | ✅ | 2026-06-26 |
+| DB compartida con backend Rails | ✅ | `host.docker.internal:5433` — sin postgres embebido |
 
 ### Flujo end-to-end
 | Item | Estado | Notas |
@@ -124,7 +125,7 @@
 | Tests unitarios `FaceIndexer` + `S3Uploader` | Media |
 | Retry con backoff para index/búsqueda | Media |
 | Circuit breaker | Baja |
-| Mover credenciales AWS fuera de `docker-compose.yml` | Alta (seguridad) |
+| Mover credenciales AWS fuera de `docker-compose.yml` | ✅ Resuelto | Credenciales en `docker-compose.yml` reemplazadas por `${AWS_ACCESS_KEY_ID}` / `${AWS_SECRET_ACCESS_KEY}` (se leen del `.env.development`). |
 
 ### Go Service
 | Item | Prioridad |
@@ -136,7 +137,7 @@
 ### Terraform / Infra
 | Item | Prioridad |
 |------|-----------|
-| State remoto S3 + DynamoDB lock | Alta (sigue siendo local) |
+| State remoto S3 + DynamoDB lock | ✅ Resuelto | Backend S3 `tf-state-aws-app-perfilamiento-dev`, lock nativo de S3. |
 | Módulo `iam` separado | Baja |
 | KMS encryption en bucket | Baja (SSE-S3 ya activa) |
 
@@ -160,16 +161,35 @@
 
 ---
 
+## Camera Server (`camera-server/`)
+
+> Sistema de streaming y reconocimiento facial en tiempo real para elclub. NVR Hikvision + ZLMediaKit + recognition pipeline Python.
+
+| Item | Estado | Notas |
+|------|--------|-------|
+| ZLMediaKit (reemplazó MediaMTX) | ✅ | Puertos 8554 (RTSP), 8083 (HTTP API) |
+| NVR Hikvision channel mapping | ✅ | 201=Cám.01 main, 202=sub / 301=Cám.02 main, 302=sub |
+| Dashboard HLS estático | ✅ | `dashboard/index.html` — streams `live/201`, `live/301` |
+| Dashboard web React | ✅ | `dashboard-web/` — consumo via API de camera-server |
+| Recognition pipeline Python | ✅ | face detection + tracking |
+| Push a ZLMediaKit | ✅ | `perfilamiento-recognition-1` → `live/201`, `live/301` |
+| DB PostgreSQL (Docker Compose) | ✅ | `camserver` en `deploy/docker-compose.yml` |
+| CLAUDE.md + ARCHITECTURE.md | ✅ | Doc de agente y arquitectura |
+| Kinesis streaming pipeline | ❌ Eliminado | Destruido en AWS (jul 2026) |
+
+---
+
 ## Servicios Locales
 
 | Servicio | URL/Puerto |
 |----------|------------|
 | Frontend usuarios | http://localhost:5173 |
-| Admin panel | http://localhost:5174 |
-| Rails API | http://localhost:3000 |
+| Admin panel | http://localhost:5175 |
+| Rails API | http://localhost:3001 |
 | Go service (face search) | http://localhost:8081 |
 | PostgreSQL (docker) | localhost:5432 |
-| Redis (docker) | localhost:6380 |
+| camera-server API REST | http://localhost:8080 |
+| ZLMediaKit (HLS/RTMP) | rtsp://localhost:8554, http://localhost:8083 |
 
 ---
 
@@ -180,7 +200,6 @@
 ### Backend Rails
 ```
 DATABASE_URL=postgres://app_perfil:dev_password@postgres:5432/app_perfil_development?sslmode=disable
-REDIS_URL=redis://redis:6379/1
 RAILS_ENV=development
 JWT_SECRET_KEY=<generate-256-bit>
 CORS_ORIGINS=http://localhost:5173,http://localhost:5174
@@ -191,11 +210,13 @@ REKOGNITION_COLLECTION_ID=socios_stadium_users
 
 ### Go service
 ```
-DATABASE_URL=postgres://app_perfil:dev_password@localhost:5432/app_perfil_development?sslmode=disable
+DATABASE_URL=postgres://app_perfil:dev_password@host.docker.internal:5433/app_perfil_development?sslmode=disable
 FACE_SEARCH_TOKEN=<secret-compartido-con-admin-panel>
 REKOGNITION_COLLECTION_ID=socios_stadium_users
 PORT=8080
-CORS_ORIGINS=http://localhost:5173,http://localhost:5174
+CORS_ORIGINS=http://localhost:5174,http://localhost:5175
+AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
 ```
 
 ### Terraform (`infrastructure/aws/variables.tf`)

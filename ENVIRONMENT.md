@@ -6,7 +6,7 @@
 
 ---
 
-## 1. Variables backend (`backend/`)
+## 1. Variables backend (`app-socios-estadio-backend/`)
 
 ```bash
 # Core
@@ -16,10 +16,7 @@ JWT_SECRET_KEY=<generate-256-bit>                       # >= 32 chars
 
 # DB (Cloud SQL en prod, local docker en dev)
 DATABASE_URL=postgresql://user:pass@/db?host=/cloudsql/instance
-# Alternativa: DB_HOST + DB_PORT + DB_USER + DB_PASSWORD
-
-# Redis (Memorystore)
-REDIS_URL=rediss://user:pass@/0?addr=instance:6379
+# Dev local: postgres://app_perfil:dev_password@localhost:5432/app_perfil_development?sslmode=disable
 
 # CORS
 CORS_ORIGINS=https://admin.appservicios.cl,https://app.appservicios.cl
@@ -46,7 +43,7 @@ SEED_SUPPORT_PASSWORD=Soporte123!
 
 ---
 
-## 2. Variables Go service (`face-search-service/`)
+## 2. Variables Go service (`app-socios-estadio-face-search/`)
 
 ```bash
 # Server
@@ -54,28 +51,30 @@ PORT=8080
 
 # Auth
 FACE_SEARCH_TOKEN=<secret-token-compartido-con-admin-panel>
-CORS_ORIGINS=http://localhost:5174                    # o CSV para prod
+CORS_ORIGINS=http://localhost:5174,http://localhost:5175   # admin + admin-dev
 
-# AWS
+# AWS (prod: IAM role del Cloud Run service account, no env vars)
 AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=<key>            # solo dev; prod usa IAM role
-AWS_SECRET_ACCESS_KEY=<secret>      # solo dev; prod usa IAM role
+AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}       # solo dev; prod usa IAM role
+AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} # solo dev; prod usa IAM role
 AWS_S3_BUCKET_NAME=perfilamiento-faces
 REKOGNITION_COLLECTION_ID=socios_stadium_users
 
-# DB
-DATABASE_URL=postgres://user:pass@host:5432/db?sslmode=disable
+# DB — compartido con backend Rails (dev: host.docker.internal:5433)
+DATABASE_URL=postgres://app_perfil:dev_password@host.docker.internal:5433/app_perfil_development?sslmode=disable
 ```
+
+> En dev via `docker compose`, las vars `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` se leen del `.env.development`. En prod, el Cloud Run service account usa IAM role (Workload Identity Federation).
 
 > Ver `face-search-service/.env.example` para el template completo.
 
 ---
 
-## 3. Frontend usuarios (`frontend/`)
+## 3. Frontend usuarios (`app-socios-estadio-frontend/`)
 
 ```bash
 # Backend API
-VITE_API_BASE_URL=http://localhost:3000        # dev
+VITE_API_BASE_URL=http://localhost:3001        # dev (puerto 3001)
 VITE_API_BASE_URL=https://api.appservicios.cl  # prod
 
 # AWS region
@@ -99,11 +98,11 @@ VITE_FACE_SEARCH_TOKEN=<compartido-con-face-search-service>
 
 ---
 
-## 4. Admin panel (`admin/`)
+## 4. Admin panel (`app-socios-estadio-admin/`)
 
 ```bash
 # Backend API
-VITE_API_BASE_URL=http://localhost:3000        # dev
+VITE_API_BASE_URL=http://localhost:3001        # dev (puerto 3001)
 VITE_API_BASE_URL=https://api.appservicios.cl  # prod
 
 # Go face-search service
@@ -116,6 +115,8 @@ VITE_ADMIN_EMAIL=admin@appperfil.cl
 VITE_ADMIN_PASSWORD=Admin123!
 ```
 
+> Puerto dev: **5175**. Proxy `/api` → `http://localhost:3001`.
+
 > Ver `admin/.env.example` para el template completo.
 
 ---
@@ -124,11 +125,12 @@ VITE_ADMIN_PASSWORD=Admin123!
 
 | Proyecto | Template (tracked) | Dev defaults (tracked, sin secretos) | Secrets reales (gitignored) |
 |---|---|---|---|
-| backend | `backend/.env.example` | `backend/.env.development` | `backend/.env`, `backend/.env.aws`, `backend/.env.production` |
-| frontend | `frontend/.env.example` | `frontend/.env.development` | `frontend/.env`, `frontend/.env.local`, `frontend/.env.production` |
-| admin | `admin/.env.example` | `admin/.env.development` | `admin/.env`, `admin/.env.local`, `admin/.env.production` |
-| face-search-service | `face-search-service/.env.example` | `face-search-service/.env.development` | `face-search-service/.env`, `face-search-service/.env.production` |
-| infrastructure (Terraform) | `infrastructure/*/variables.tf` (defaults en código) | n/a | `infrastructure/*/*.tfvars` (gitignored por `.gitignore` raíz) |
+| `app-socios-estadio-backend` | `backend/.env.example` | `backend/.env.development` | `backend/.env`, `backend/.env.production` |
+| `app-socios-estadio-frontend` | `frontend/.env.example` | `frontend/.env.development` | `frontend/.env`, `frontend/.env.local`, `frontend/.env.production` |
+| `app-socios-estadio-admin` | `admin/.env.example` | `admin/.env.development` | `admin/.env`, `admin/.env.local`, `admin/.env.production` |
+| `app-socios-estadio-face-search` | `face-search-service/.env.example` | `face-search-service/.env.development` | `face-search-service/.env`, `face-search-service/.env.production` |
+| `camera-server` | `deploy/.env.example` | — | `deploy/.env` |
+| Terraform (`app-socios-estadio-infra`) | `infrastructure/*/variables.tf` (defaults en código) | n/a | `infrastructure/*/*.tfvars` (gitignored) |
 
 > Los `.env.development` son tracked y funcionan out-of-the-box con defaults seguros (sin secretos reales). En prod, override via Secret Manager / env vars del Cloud Run service.
 > 

@@ -6,11 +6,12 @@
 Plataforma SaaS para registro de socios con verificación facial y sistema de puntos.
 
 ## Stack
-- Frontend: React 19 + Vite + Tailwind v4 + shadcn/ui
-- Backend: Rails 8 API
-- Servicio biométrico: Go service en Cloud Run
+- Frontend: React 19 + Vite 8 + Tailwind v4 + shadcn/ui
+- Backend: Rails 8 API (Ruby 3.4)
+- Servicio biométrico: Go 1.24 en Cloud Run
 - AWS: Rekognition, S3
-- GCP: Cloud SQL PostgreSQL, Cloud Run, Memorystore Redis
+- GCP: Cloud SQL PostgreSQL, Cloud Run
+- Camera server: Python + ZLMediaKit (on-prem)
 
 ## Regla principal
 Este archivo define cómo debe trabajar el agente en este proyecto.
@@ -218,17 +219,19 @@ Siempre responder con:
 |---|---|---|
 | [`app-socios-estadio-frontend`](https://github.com/arnigon-holdings/app-socios-estadio-frontend) | [`frontend/CLAUDE.md`](https://github.com/arnigon-holdings/app-socios-estadio-frontend/blob/main/CLAUDE.md) | Contexto del frontend: liveness UX, decisiones de wizard |
 | [`app-socios-estadio-admin`](https://github.com/arnigon-holdings/app-socios-estadio-admin) | [`admin/CLAUDE.md`](https://github.com/arnigon-holdings/app-socios-estadio-admin/blob/main/CLAUDE.md) | Contexto del admin: rutas, decisiones de tablas vs cards |
-| [`app-socios-estadio-backend`](https://github.com/arnigon-holdings/app-socios-estadio-backend) | `backend/README.md` (no tiene CLAUDE.md) | Comandos del backend |
-| [`app-socios-estadio-face-search`](https://github.com/arnigon-holdings/app-socios-estadio-face-search) | `face-search-service/README.md` (no tiene CLAUDE.md) | Comandos del Go service |
+| [`app-socios-estadio-backend`](https://github.com/arnigon-holdings/app-socios-estadio-backend) | [`backend/CLAUDE.md`](https://github.com/arnigon-holdings/app-socios-estadio-backend/blob/main/CLAUDE.md) | Stack, rutas, modelos, services, boundaries |
+| [`app-socios-estadio-face-search`](https://github.com/arnigon-holdings/app-socios-estadio-face-search) | [`face-search-service/CLAUDE.md`](https://github.com/arnigon-holdings/app-socios-estadio-face-search/blob/main/CLAUDE.md) | Stack, endpoints, flujo interno, gotchas |
+| [`camera-server`](https://github.com/arnigon-holdings/camera-server) | [`CLAUDE.md`](https://github.com/arnigon-holdings/camera-server/blob/main/CLAUDE.md) | Recognition pipeline, camera config, NVR channels |
 
 ### Per-subsystem READMEs (comandos, env vars)
 
-| Repo | README |
+| Repo | Doc principal |
 |---|---|
 | [`app-socios-estadio-frontend`](https://github.com/arnigon-holdings/app-socios-estadio-frontend) | [`README.md`](https://github.com/arnigon-holdings/app-socios-estadio-frontend/blob/main/README.md) — quickstart, env vars VITE_*, estructura |
-| [`app-socios-estadio-admin`](https://github.com/arnigon-holdings/app-socios-estadio-admin) | [`README.md`](https://github.com/arnigon-holdings/app-socios-estadio-admin/blob/main/README.md) — quickstart, env vars VITE_*, estructura |
-| [`app-socios-estadio-backend`](https://github.com/arnigon-holdings/app-socios-estadio-backend) | [`README.md`](https://github.com/arnigon-holdings/app-socios-estadio-backend/blob/main/README.md) — docker-compose, env vars, endpoints |
-| [`app-socios-estadio-face-search`](https://github.com/arnigon-holdings/app-socios-estadio-face-search) | [`README.md`](https://github.com/arnigon-holdings/app-socios-estadio-face-search/blob/main/README.md) — Go service, endpoints, env vars |
+| [`app-socios-estadio-admin`](https://github.com/arnigon-holdings/app-socios-estadio-admin) | [`ARCHITECTURE.md`](https://github.com/arnigon-holdings/app-socios-estadio-admin/blob/main/ARCHITECTURE.md) — estructura, flujo auth, face-search bypass, stack |
+| [`app-socios-estadio-backend`](https://github.com/arnigon-holdings/app-socios-estadio-backend) | [`CLAUDE.md`](https://github.com/arnigon-holdings/app-socios-estadio-backend/blob/main/CLAUDE.md) — rutas, modelos, services, boundaries |
+| [`app-socios-estadio-face-search`](https://github.com/arnigon-holdings/app-socios-estadio-face-search) | [`CLAUDE.md`](https://github.com/arnigon-holdings/app-socios-estadio-face-search/blob/main/CLAUDE.md) — flujo interno, endpoints, gotchas, deploy |
+| [`camera-server`](https://github.com/arnigon-holdings/camera-server) | [`ARCHITECTURE.md`](https://github.com/arnigon-holdings/camera-server/blob/main/ARCHITECTURE.md) — recognition pipeline, NVR channel convention, ZLMediaKit config |
 
 ## Cómo el agente usa esta documentación
 

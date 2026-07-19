@@ -65,7 +65,8 @@ infrastructure/
   - Lambda + API Gateway: Face Liveness (control plane para Rekognition).
   - Cognito: Identity Pool + User Pool para Amplify SDK.
   - Lightsail (opcional): relay para WebSocket streaming.
-- **Go service** (Cloud Run): expone `POST /search-face` al admin panel. Auth vía bearer token (`FACE_SEARCH_TOKEN`). CORS allowlist vía `CORS_ORIGINS` (no usar `*`).
+- **Go service** (Cloud Run): expone `POST /search-face` al admin panel. Auth vía bearer token (`FACE_SEARCH_TOKEN`). CORS allowlist vía `CORS_ORIGINS` (no usar `*`). Lee directamente de PostgreSQL compartido con backend Rails (sin DB propia).
+- **camera-server** (on-prem): ZLMediaKit para streaming HLS. No usa infra cloud (corre en el club).
 
 ### 3.2 IAM (principio)
 
@@ -80,9 +81,8 @@ infrastructure/
 
 ### 4.1 Servicios
 
-- Cloud SQL PostgreSQL: DB principal.
-- Cloud Run: backend Rails y Go service.
-- Memorystore Redis: cache + rate limiting.
+- Cloud SQL PostgreSQL: DB principal (compartida entre Rails y Go service).
+- Cloud Run: backend Rails y Go service (servicios separados o mismo servicio con múltiples contenedores).
 - Cloud Build: CI/CD.
 
 ### 4.2 Conexión Cloud SQL
@@ -95,17 +95,20 @@ infrastructure/
 ## 5. Environments
 
 - **Development**:
-  - Docker Compose local para backend + Postgres + Redis.
+  - Docker Compose local para backend + Postgres.
+  - Go service: `docker compose up face-search` o `go run ./cmd/server`.
+  - camera-server: Docker Compose con ZLMediaKit + Postgres + recognition service.
 - **Staging**:
-  - GCP Cloud Run + Cloud SQL + Memorystore (pendiente definir).
+  - GCP Cloud Run + Cloud SQL.
 - **Production**:
-  - GCP Cloud Run + Cloud SQL + Memorystore.
-  - Storage principal: S3 para fotos; otros assets pueden usar Cloud Storage / R2-compatible según decisión futura.
+  - GCP Cloud Run + Cloud SQL.
+  - Storage principal: S3 para fotos.
 
 ---
 
 ## 6. Patrones de resiliencia
 
+- Rack-attack para rate limiting (backend Rails).
 - Retries con backoff para llamadas a AWS y Twilio.
 - Circuit breakers en Go service y/o backend en llamadas críticas.
 - Timeouts obligatorios para llamadas externas.

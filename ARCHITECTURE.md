@@ -2,58 +2,65 @@
 
 ## 1. Repositorios y estructura
 
-Raíz monorepo:
+Polyrepo (7 repos en `perfilamiento/`):
 
 ```txt
 perfilamiento/
-├── SPEC.md
-├── AGENTS.md
-├── HARNESS.md
-├── ARCHITECTURE.md
-├── INFRASTRUCTURE.md
-├── ENVIRONMENT.md
-├── Makefile
-├── backend/               # Rails 8 API
-├── frontend/              # React SPA usuarios
-├── admin/                 # React SPA admin
-└── face-search-service/   # Go service (Cloud Run)
+├── app-socios-estadio-infra/      # Terraform (AWS + GCP infra)
+├── app-socios-estadio-backend/    # Rails 8 API
+├── app-socios-estadio-frontend/   # React SPA usuarios
+├── app-socios-estadio-admin/       # React SPA admin
+├── app-socios-estadio-face-search/ # Go service (Cloud Run)
+├── app-socios-estadio-docs/        # Esta documentación
+└── camera-server/                  # Python recognition pipeline + dashboard
 ```
 
-> Nota: nombres consistentes:  
-> - `backend/` = Rails 8 API  
-> - `frontend/` = app usuarios  
-> - `admin/` = admin panel  
-> - `face-search-service/` = Go service búsqueda facial  
+> Nombres consistentes de repos en GitHub: `app-socios-estadio-<nombre>`.  
 
 ## 2. Stack por componente
 
-### 2.1 Backend (`backend/`)
+### 2.1 Backend (`app-socios-estadio-backend/`)
 
-- Rails 8 API-only.
+- Rails 8 API-only (Ruby 3.4).
 - PostgreSQL 16.
-- Redis 7 (cache, rate limiting).
-- Auth JWT (access 1h, refresh 30d) vía cookies httpOnly.
+- Auth JWT (access 1h, refresh 7d) vía cookies httpOnly para users; cookie httpOnly separada para admins.
 - Rack-attack para rate limiting.
+- Puerto dev: **3001**.
 
-### 2.2 Frontend usuarios (`frontend/`)
+### 2.2 Frontend usuarios (`app-socios-estadio-frontend/`)
 
-- React 19 + Vite 6.
+- React 19 + Vite 8.
 - Tailwind v4 + shadcn/ui.
 - TanStack Query v5.
 - React Hook Form + Zod.
 - React Router v7.
+- Puerto dev: **5173**.
 
-### 2.3 Admin panel (`admin/`)
+### 2.3 Admin panel (`app-socios-estadio-admin/`)
 
 - Mismo stack que `frontend/`.
-- Puerto dev: 5174.
-- Proxy `/api` → `http://localhost:3000`.
+- Puerto dev: **5175**.
+- Proxy `/api` → `http://localhost:3001` (Rails dev).
 
-### 2.4 Go service (`face-search-service/`)
+### 2.4 Go service (`app-socios-estadio-face-search/`)
 
-- Go.
+- Go 1.24.
 - Cloud Run target.
-- Integra con Rekognition y PostgreSQL.
+- Lee de PostgreSQL compartido con backend Rails (sin DB propia).
+- Puerto default: 8080, dev: 8081.
+
+### 2.5 Camera server (`camera-server/`)
+
+- Python (FastAPI/NestJS para API REST) + recognition pipeline en Python.
+- Dashboard HLS estático (`dashboard/index.html`) + dashboard web React (`dashboard-web/`).
+- Puerto dev: **8080** para API REST.
+- Streamer: **ZLMediaKit** (reemplazó MediaMTX). Puerto: 8554 (RTSP), 8083 (HTTP API).
+- NVR: Hikvision (`192.168.1.13`, admin/simon2323).
+- Canales NVR: **2XX = Cámara 01** (192.168.254.3), **3XX = Cámara 02** (192.168.254.4); sufijo par = main stream (alta res), impar = sub stream (baja res).
+  - 201 = Cámara 01 main (1920×1080), 202 = sub (640×360)
+  - 301 = Cámara 02 main (1920×1080), 302 = sub (640×360)
+- DB: PostgreSQL propia (`camserver`) vía Docker Compose.
+- Push a ZLMediaKit: `perfilamiento-recognition-1` → streams `live/201` (Cámara 01) y `live/301` (Cámara 02).
 
 ---
 
@@ -85,10 +92,10 @@ El panel admin consulta la búsqueda facial **directamente** al Go service, sin 
 - Endpoint: `POST {VITE_FACE_SEARCH_URL}/search-face` (default dev: `http://localhost:8081`)
 - Auth: header `Authorization: Bearer {VITE_FACE_SEARCH_TOKEN}` (token compartido entre admin y Go service via env vars)
 - Request body: `{ "image": "data:image/jpeg;base64,..." }`
-- Response: `{ matches: [{ user_id, rut, phone, confidence, face_id }], query_time_ms }`
-- CORS: Go service valida origin contra allowlist en `CORS_ORIGINS` (comma-separated). Default dev: `http://localhost:5173,http://localhost:5174`. Sin allowlist = sin CORS = bloqueado por browser.
+- Response: `{ matches: [{ user_id, rut, phone, confidence, face_id, photo_url }], query_time_ms }`
+- CORS: Go service valida origin contra allowlist en `CORS_ORIGINS` (comma-separated). Default dev: `http://localhost:5174,http://localhost:5175`. Sin allowlist = sin CORS = bloqueado por browser.
 
-Regla: el admin NUNCA llama `/api/v1/admin/face-search` en Rails. El endpoint Rails para face records (`GET /api/v1/admin/users/:id/face-records`, `POST .../reindex-face`) es solo para consultar/reindexar caras de un user conocido — no para buscar.
+Regla: el admin NUNCA llama `/api/v1/admin/face-search` en Rails. El endpoint Rails para face records (`GET /api/v1/admin/users/:id/face_records`, `POST .../reindex-face`) es solo para consultar/reindexar caras de un user conocido — no para buscar.
 
 ### 3.3 Integraciones externas
 
@@ -103,19 +110,21 @@ Todas las integraciones deben pasar por capas de infraestructura dedicadas (no l
 ## 4. Diagrama simplificado
 
 ```txt
-frontend (React)   admin (React)
-       │                │
-       ├────── API REST ┤
-       │                │
-        └─── backend (Rails API)
-                 │
-      ┌──────────┴───────────┐
-      │                      │
-   PostgreSQL (Cloud SQL)  Redis (Memorystore)
-      │
-      └── face-search-service (Go, Cloud Run)
-               │
-           AWS Rekognition + S3
+frontend (React)    admin (React)    camera-server (Python)
+       │                │                  │
+       ├────── API REST ┤                  │
+       │                │                  ├──── ZLMediaKit (HLS/RTMP)
+       │                │                  │
+        └─── backend (Rails API)          │
+                 │                    ┌────┴────┐
+       ┌─────────┴─────────┐         │   NVR   │
+       │                   │         │ (Hikvision)
+   PostgreSQL         AWS Rekognition  └──────────┘
+   (Cloud SQL)        + S3
+       │
+       └── face-search-service (Go, Cloud Run)
+                │
+            AWS Rekognition + S3 (presigned URLs)
 ```
 
 ---
@@ -126,12 +135,14 @@ frontend (React)   admin (React)
 - Go service separado del backend Rails para aislar carga y dependencia de Rekognition.
 - AWS se usa solo para biometría y fotos; DB principal vive en GCP.
 - Face liveness ya existe como Lambda + API Gateway; este proyecto se conecta a su salida, no la implementa.
+- camera-server es un repo separado que corren los guardias; entrega HLS via ZLMediaKit. No depende del backend Rails ni del Go service.
+- ZLMediaKit reemplaza MediaMTX para streaming HLS/RTMP.
 
 ---
 
 ## 6. Escalabilidad y resiliencia (alto nivel)
 
-- Redis para rate limiting y caché.
+- Rack-attack para rate limiting en backend Rails.
 - Circuit breakers y retry con backoff para:
   - AWS Rekognition
   - S3
@@ -145,5 +156,6 @@ frontend (React)   admin (React)
 
 - Integración Rekognition (drift de schema en `face_records`).
 - Manejo de tokens y cookies entre frontends y backend.
-- Sincronización de `SPEC.md` con endpoints reales.
 - Consistencia entre IDs de usuario en Rails y Go service.
+- Credenciales AWS: en prod, IAM roles (no env vars). En dev, usar `.env` gitignored.
+- ZLMediaKit: los streams HLS requieren re-stream si el NVR cambia IPs.
